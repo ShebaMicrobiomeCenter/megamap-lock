@@ -1,0 +1,25 @@
+# Temporary files
+*.tmp
+*.temp
+input.csv
+output.csv
+.DS_Store
+
+# Node.js
+node_modules/
+npm-debug.log*
+yarn-debug.log*
+yarn-error.log*
+
+# IDE
+.vscode/
+.idea/
+*.swp
+*.swo
+
+# OS
+.DS_Store
+Thumbs.db
+
+# Note: .enc files ARE tracked (encrypted files should be committed)
+# ✅ .enc files will be tracked and synced by GitHub Actions

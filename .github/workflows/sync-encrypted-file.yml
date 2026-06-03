@@ -1,0 +1,109 @@
+name: Sync Encrypted File from MEGAMAP
+
+on:
+  # תירוץ יומי בשעה 00:00 UTC (ניתן להתאים לצרכים)
+  schedule:
+    - cron: '0 0 * * *'
+  
+  # אפשרות להריץ ידנית
+  workflow_dispatch:
+  
+  # אם רוצים תירוץ כאשר הקובץ מתעדכן ברפו של MEGAMAP (צריך להגדיר webhook)
+  # repository_dispatch:
+  #   types: [megamap-updated]
+
+jobs:
+  sync:
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write
+      
+    steps:
+      - name: Checkout current repository
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 1
+
+      - name: Download encrypted file from MEGAMAP repository
+        env:
+          MEGAMAP_TOKEN: ${{ secrets.MEGAMAP_ACCESS }}
+          MEGAMAP_OWNER: ${{ vars.MEGAMAP_OWNER }}  # שינוי: הגדר ב-Settings > Variables
+          MEGAMAP_REPO: ${{ vars.MEGAMAP_REPO }}    # שינוי: הגדר ב-Settings > Variables
+          MEGAMAP_FILE_PATH: ${{ vars.MEGAMAP_FILE_PATH }}  # דוגמה: latest-light.csv.enc
+        run: |
+          set -e
+          
+          if [ -z "$MEGAMAP_OWNER" ] || [ -z "$MEGAMAP_REPO" ] || [ -z "$MEGAMAP_FILE_PATH" ]; then
+            echo "❌ שגיאה: חסרים משתנים סביבה"
+            echo "הגדר את המשתנים הבאים ב-Settings > Variables:"
+            echo "  - MEGAMAP_OWNER"
+            echo "  - MEGAMAP_REPO"
+            echo "  - MEGAMAP_FILE_PATH"
+            exit 1
+          fi
+          
+          ENCODED_PATH=$(echo "$MEGAMAP_FILE_PATH" | jq -sRr @uri)
+          API_URL="https://api.github.com/repos/$MEGAMAP_OWNER/$MEGAMAP_REPO/contents/$ENCODED_PATH"
+          
+          echo "📥 Downloading from: $API_URL"
+          
+          # Download from private repository using GitHub API
+          RESPONSE=$(curl -s -L \
+            -H "Accept: application/vnd.github+json" \
+            -H "Authorization: Bearer $MEGAMAP_TOKEN" \
+            "$API_URL")
+          
+          # בדוק אם קיבלנו שגיאה
+          if echo "$RESPONSE" | grep -q '"message".*"Not Found"'; then
+            echo "❌ הקובץ לא נמצא או אין הרשאות גישה"
+            echo "Response: $RESPONSE"
+            exit 1
+          fi
+          
+          # חלץ את התוכן המקודד base64
+          ENCODED_CONTENT=$(echo "$RESPONSE" | grep -o '"content":"[^"]*' | cut -d'"' -f4)
+          
+          if [ -z "$ENCODED_CONTENT" ]; then
+            echo "❌ לא ניתן לחלץ את התוכן מהתגובה"
+            echo "Response: $RESPONSE"
+            exit 1
+          fi
+          
+          # בטל קידוד base64 וחסוך לקובץ
+          echo "$ENCODED_CONTENT" | base64 -d > "$(basename "$MEGAMAP_FILE_PATH")"
+          
+          FILE_NAME=$(basename "$MEGAMAP_FILE_PATH")
+          echo "✅ הקובץ הורד בהצלחה: $FILE_NAME"
+
+      - name: Check if file changed
+        id: check_changes
+        run: |
+          if git diff --quiet "$(ls *.enc 2>/dev/null | head -1 || echo '.gitkeep')"; then
+            echo "changed=false" >> $GITHUB_OUTPUT
+            echo "📄 אין שינויים בקובץ"
+          else
+            echo "changed=true" >> $GITHUB_OUTPUT
+            echo "🔄 הקובץ התעדכן"
+          fi
+
+      - name: Commit and push changes
+        if: steps.check_changes.outputs.changed == 'true'
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: |
+          git config user.name "github-actions[bot]"
+          git config user.email "github-actions[bot]@users.noreply.github.com"
+          
+          FILE_NAME=$(ls *.enc 2>/dev/null | head -1)
+          git add "$FILE_NAME"
+          git commit -m "🔄 Update encrypted file: $FILE_NAME" || true
+          git push
+
+      - name: Update status
+        if: always()
+        run: |
+          if [ "${{ steps.check_changes.outputs.changed }}" = "true" ]; then
+            echo "✅ Sync completed successfully - file updated"
+          else
+            echo "✅ Sync completed - no changes needed"
+          fi
