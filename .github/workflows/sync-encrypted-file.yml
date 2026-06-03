@@ -40,9 +40,19 @@ jobs:
             "$API_URL")
           
           # בדוק אם קיבלנו שגיאה
-          if echo "$RESPONSE" | grep -q '"message".*"Not Found"'; then
-            echo "❌ הקובץ לא נמצא או אין הרשאות גישה"
+          if echo "$RESPONSE" | grep -q '"message"'; then
+            echo "❌ API Error - debugging info:"
+            echo "API_URL: $API_URL"
             echo "Response: $RESPONSE"
+            
+            # Try to list files in MEGAMAP repo to debug
+            echo ""
+            echo "📋 Listing MEGAMAP repo contents:"
+            curl -s -L \
+              -H "Accept: application/vnd.github+json" \
+              -H "Authorization: Bearer $MEGAMAP_TOKEN" \
+              "https://api.github.com/repos/$MEGAMAP_OWNER/$MEGAMAP_REPO/contents/" | head -100
+            
             exit 1
           fi
           
