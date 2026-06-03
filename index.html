@@ -210,12 +210,26 @@
             min-width: 250px;
         }
 
-        .search-box input {
+        .search-box input,
+        .filter-box select {
             width: 100%;
             padding: 10px 15px;
             border: 2px solid #e0e0e0;
             border-radius: 8px;
             font-size: 0.95em;
+        }
+
+        .filter-box {
+            min-width: 250px;
+            display: flex;
+            flex-direction: column;
+            gap: 8px;
+        }
+
+        .filter-box label {
+            font-size: 0.95em;
+            font-weight: 600;
+            color: #333;
         }
 
         .search-box input:focus {
@@ -428,7 +442,7 @@
             <div class="data-section" id="dataSection">
                 <div class="info-bar">
                     <div class="password-indicator" id="passwordStatus">
-                        סיסמה שמורה בטבrowser (בטוח לניקוי)
+                        סיסמה שמורה בדפדפן (בטוח לניקוי)
                     </div>
                     <span class="row-count">0 שורות</span>
                     <button class="clear-password-btn" onclick="clearPassword()">ניקוי סיסמה</button>
@@ -437,6 +451,10 @@
                 <div class="data-controls">
                     <div class="search-box">
                         <input type="text" id="searchInput" placeholder="חיפוש בנתונים..." onkeyup="filterTable()">
+                    </div>
+                    <div class="filter-box">
+                        <label for="databaseFilterSelect">סינון לפי DATABASE:</label>
+                        <select id="databaseFilterSelect" onchange="onDatabaseFilterChange()"></select>
                     </div>
                     <div class="export-buttons">
                         <button class="btn-success" onclick="downloadCSV()">⬇ הורדה כ-CSV</button>
@@ -466,6 +484,8 @@
         let currentHeaders = [];
         let currentPassword = null;
         let currentFileName = null;
+        let currentDatabaseFilter = null;
+        let currentFilteredData = null;
 
         // PBKDF2 key derivation
         async function deriveKey(password, salt) {
@@ -502,7 +522,6 @@
 
         // Decrypt file
         async function decryptFile() {
-            const fileInput = document.getElementById('encryptedFile');
             const passwordInput = document.getElementById('passwordInput');
             const messageBox = document.getElementById('messageBox');
 
@@ -599,8 +618,9 @@
                 }
             }
 
-            displayTable(currentData);
-            updateInfoBar();
+            const lastRowDatabase = currentData.length ? currentData[currentData.length - 1]['DATABASE'] || 'all' : 'all';
+            populateDatabaseFilterOptions(lastRowDatabase);
+            filterTable();
         }
 
         // Parse CSV line (handle quoted fields)
@@ -665,23 +685,65 @@
             container.innerHTML = html;
         }
 
+        function getFilteredData() {
+            if (!currentData) return [];
+            if (!currentDatabaseFilter || currentDatabaseFilter === 'all') {
+                return currentData;
+            }
+            return currentData.filter(row => row['DATABASE'] === currentDatabaseFilter);
+        }
+
+        function populateDatabaseFilterOptions(defaultDatabase) {
+            const select = document.getElementById('databaseFilterSelect');
+            if (!select) return;
+
+            const distinctDatabases = Array.from(
+                new Set(currentData.map(row => row['DATABASE'] || '').filter(Boolean))
+            );
+
+            select.innerHTML = '';
+
+            const allOption = document.createElement('option');
+            allOption.value = 'all';
+            allOption.textContent = 'הצג את כל ה-DATABASE';
+            select.appendChild(allOption);
+
+            distinctDatabases.forEach(db => {
+                const option = document.createElement('option');
+                option.value = db;
+                option.textContent = db;
+                select.appendChild(option);
+            });
+
+            if (defaultDatabase && distinctDatabases.includes(defaultDatabase)) {
+                select.value = defaultDatabase;
+                currentDatabaseFilter = defaultDatabase;
+            } else {
+                select.value = 'all';
+                currentDatabaseFilter = 'all';
+            }
+        }
+
+        function onDatabaseFilterChange() {
+            currentDatabaseFilter = document.getElementById('databaseFilterSelect').value;
+            filterTable();
+        }
+
         // Filter table
         function filterTable() {
             const searchTerm = document.getElementById('searchInput').value.toLowerCase();
-            
-            if (!searchTerm) {
-                displayTable(currentData);
-                updateInfoBar();
-                return;
+            let filtered = getFilteredData();
+
+            if (searchTerm) {
+                filtered = filtered.filter(row => {
+                    return currentHeaders.some(header => {
+                        const value = (row[header] || '').toLowerCase();
+                        return value.includes(searchTerm);
+                    });
+                });
             }
 
-            const filtered = currentData.filter(row => {
-                return currentHeaders.some(header => {
-                    const value = (row[header] || '').toLowerCase();
-                    return value.includes(searchTerm);
-                });
-            });
-
+            currentFilteredData = filtered;
             displayTable(filtered);
             updateInfoBar(filtered.length);
         }
@@ -711,9 +773,10 @@
 
         // Download as CSV
         function downloadCSV() {
+            const visibleData = currentFilteredData || currentData || [];
             let csv = currentHeaders.join(',') + '\n';
             
-            currentData.forEach(row => {
+            visibleData.forEach(row => {
                 const values = currentHeaders.map(header => {
                     const value = row[header] || '';
                     // Escape quotes and wrap in quotes if contains comma
@@ -737,7 +800,6 @@
             if (confirm('האם אתה בטוח שברצונך לנקות את הסיסמה?')) {
                 currentPassword = null;
                 localStorage.removeItem('encryptedFilePassword');
-                localStorage.removeItem('encryptedFileName');
                 logout();
             }
         }
@@ -746,12 +808,13 @@
         function logout() {
             document.getElementById('loginSection').classList.remove('hidden');
             document.getElementById('dataSection').classList.remove('active');
-            document.getElementById('encryptedFile').value = '';
             document.getElementById('passwordInput').value = '';
             document.getElementById('searchInput').value = '';
             document.getElementById('tableContainer').innerHTML = '';
             currentData = null;
             currentHeaders = [];
+            currentFilteredData = null;
+            currentDatabaseFilter = null;
         }
 
         // Show message
