@@ -338,17 +338,27 @@
             display: flex;
             align-items: center;
             gap: 10px;
-            color: #667eea;
-            font-weight: 600;
+            color: #4f5b7b;
+            font-weight: 500;
+            font-size: 0.95em;
+            padding: 10px 14px;
+            background: #f4f7ff;
+            border: 1px solid #dfe7ff;
+            border-radius: 10px;
+            margin-bottom: 20px;
+        }
+
+        .loading.hidden {
+            display: none;
         }
 
         .spinner {
-            border: 3px solid #f0f0f0;
-            border-top: 3px solid #667eea;
+            border: 2px solid #dfe7ff;
+            border-top: 2px solid #667eea;
             border-radius: 50%;
-            width: 20px;
-            height: 20px;
-            animation: spin 1s linear infinite;
+            width: 16px;
+            height: 16px;
+            animation: spin 0.9s linear infinite;
         }
 
         @keyframes spin {
@@ -464,7 +474,7 @@
 
                 <div id="loadingBar" class="loading hidden">
                     <div class="spinner"></div>
-                    <span>עיבוד נתונים...</span>
+                    <span>מעבד נתונים...</span>
                 </div>
 
                 <div id="tableContainer" class="table-wrapper"></div>
@@ -524,6 +534,7 @@
         async function decryptFile() {
             const passwordInput = document.getElementById('passwordInput');
             const messageBox = document.getElementById('messageBox');
+            const loadingBar = document.getElementById('loadingBar');
 
             if (!passwordInput.value) {
                 showMessage('הכנס סיסמה', 'error', messageBox);
@@ -531,7 +542,8 @@
             }
 
             try {
-                showMessage('טוען את הקובץ המוצפן... אנא חכה', 'info', messageBox);
+                showMessage('טוען את הקובץ המוצפן... אנא המתן', 'info', messageBox);
+                loadingBar.classList.remove('hidden');
 
                 const password = passwordInput.value;
 
@@ -575,6 +587,7 @@
                 // Parse CSV
                 const csvText = new TextDecoder().decode(decrypted);
                 parseAndDisplayCSV(csvText);
+                loadingBar.classList.add('hidden');
 
                 // Store password in session
                 currentPassword = password;
@@ -591,6 +604,7 @@
             } catch (error) {
                 console.error('Decryption error:', error);
                 showMessage('שגיאה בפענוח: ' + error.message, 'error', messageBox);
+                loadingBar.classList.add('hidden');
             }
         }
 
