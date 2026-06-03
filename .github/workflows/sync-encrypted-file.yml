@@ -27,20 +27,12 @@ jobs:
       - name: Download encrypted file from MEGAMAP repository
         env:
           MEGAMAP_TOKEN: ${{ secrets.MEGAMAP_ACCESS }}
-          MEGAMAP_OWNER: ${{ vars.MEGAMAP_OWNER }}  # שינוי: הגדר ב-Settings > Variables
-          MEGAMAP_REPO: ${{ vars.MEGAMAP_REPO }}    # שינוי: הגדר ב-Settings > Variables
-          MEGAMAP_FILE_PATH: ${{ vars.MEGAMAP_FILE_PATH }}  # דוגמה: latest-light.csv.enc
         run: |
           set -e
           
-          if [ -z "$MEGAMAP_OWNER" ] || [ -z "$MEGAMAP_REPO" ] || [ -z "$MEGAMAP_FILE_PATH" ]; then
-            echo "❌ שגיאה: חסרים משתנים סביבה"
-            echo "הגדר את המשתנים הבאים ב-Settings > Variables:"
-            echo "  - MEGAMAP_OWNER"
-            echo "  - MEGAMAP_REPO"
-            echo "  - MEGAMAP_FILE_PATH"
-            exit 1
-          fi
+          MEGAMAP_OWNER="ShebaMicrobiomeCenter"
+          MEGAMAP_REPO="megamap"
+          MEGAMAP_FILE_PATH="latest-light.csv.enc"
           
           ENCODED_PATH=$(echo "$MEGAMAP_FILE_PATH" | jq -sRr @uri)
           API_URL="https://api.github.com/repos/$MEGAMAP_OWNER/$MEGAMAP_REPO/contents/$ENCODED_PATH"
