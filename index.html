@@ -494,6 +494,7 @@
         let currentHeaders = [];
         let currentPassword = null;
         let currentFileName = null;
+        let currentDatabaseColumn = null;
         let currentDatabaseFilter = null;
         let currentFilteredData = null;
 
@@ -618,6 +619,7 @@
 
             // Parse headers
             currentHeaders = parseCSVLine(lines[0]);
+            currentDatabaseColumn = currentHeaders.find(header => header.trim().toLowerCase() === 'database') || null;
             
             // Parse data
             currentData = [];
@@ -632,7 +634,7 @@
                 }
             }
 
-            const lastRowDatabase = currentData.length ? currentData[currentData.length - 1]['DATABASE'] || 'all' : 'all';
+            const lastRowDatabase = currentData.length && currentDatabaseColumn ? currentData[currentData.length - 1][currentDatabaseColumn] || 'all' : 'all';
             populateDatabaseFilterOptions(lastRowDatabase);
             filterTable();
         }
@@ -699,21 +701,40 @@
             container.innerHTML = html;
         }
 
+        function normalizeValue(value) {
+            return (value || '').toString().trim().toLowerCase();
+        }
+
         function getFilteredData() {
             if (!currentData) return [];
-            if (!currentDatabaseFilter || currentDatabaseFilter === 'all') {
+            if (!currentDatabaseColumn || !currentDatabaseFilter || currentDatabaseFilter === 'all') {
                 return currentData;
             }
-            return currentData.filter(row => row['DATABASE'] === currentDatabaseFilter);
+            return currentData.filter(row => normalizeValue(row[currentDatabaseColumn]) === normalizeValue(currentDatabaseFilter));
         }
 
         function populateDatabaseFilterOptions(defaultDatabase) {
             const select = document.getElementById('databaseFilterSelect');
             if (!select) return;
 
-            const distinctDatabases = Array.from(
-                new Set(currentData.map(row => row['DATABASE'] || '').filter(Boolean))
-            );
+            if (!currentDatabaseColumn) {
+                select.innerHTML = '';
+                const noDbOption = document.createElement('option');
+                noDbOption.value = 'all';
+                noDbOption.textContent = 'אין עמודת DATABASE במסמך';
+                select.appendChild(noDbOption);
+                select.disabled = true;
+                currentDatabaseFilter = 'all';
+                return;
+            }
+
+            select.disabled = false;
+            const rawDatabases = currentData
+                .map(row => row[currentDatabaseColumn] || '')
+                .map(value => value.toString().trim())
+                .filter(Boolean);
+
+            const distinctDatabases = Array.from(new Set(rawDatabases));
 
             select.innerHTML = '';
 
@@ -724,14 +745,14 @@
 
             distinctDatabases.forEach(db => {
                 const option = document.createElement('option');
-                option.value = db;
+                option.value = normalizeValue(db);
                 option.textContent = db;
                 select.appendChild(option);
             });
 
-            if (defaultDatabase && distinctDatabases.includes(defaultDatabase)) {
-                select.value = defaultDatabase;
-                currentDatabaseFilter = defaultDatabase;
+            if (defaultDatabase && distinctDatabases.some(db => normalizeValue(db) === normalizeValue(defaultDatabase))) {
+                select.value = normalizeValue(defaultDatabase);
+                currentDatabaseFilter = normalizeValue(defaultDatabase);
             } else {
                 select.value = 'all';
                 currentDatabaseFilter = 'all';
