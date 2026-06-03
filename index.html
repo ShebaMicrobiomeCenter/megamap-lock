@@ -466,6 +466,10 @@
                         <label for="databaseFilterSelect">סינון לפי DATABASE:</label>
                         <select id="databaseFilterSelect" onchange="onDatabaseFilterChange()"></select>
                     </div>
+                    <div class="filter-box">
+                        <label for="cohortFilterSelect">סינון לפי Cohort:</label>
+                        <select id="cohortFilterSelect" onchange="onCohortFilterChange()"></select>
+                    </div>
                     <div class="export-buttons">
                         <button class="btn-success" onclick="downloadCSV()">⬇ הורדה כ-CSV</button>
                         <button class="btn-secondary" onclick="logout()">חזרה</button>
@@ -496,6 +500,8 @@
         let currentFileName = null;
         let currentDatabaseColumn = null;
         let currentDatabaseFilter = null;
+        let currentCohortColumn = null;
+        let currentCohortFilter = null;
         let currentFilteredData = null;
 
         // PBKDF2 key derivation
@@ -620,6 +626,7 @@
             // Parse headers
             currentHeaders = parseCSVLine(lines[0]);
             currentDatabaseColumn = currentHeaders.find(header => header.trim().toLowerCase() === 'database') || null;
+            currentCohortColumn = currentHeaders.find(header => header.trim().toLowerCase() === 'cohort') || null;
             
             // Parse data
             currentData = [];
@@ -636,6 +643,7 @@
 
             const lastRowDatabase = currentData.length && currentDatabaseColumn ? currentData[currentData.length - 1][currentDatabaseColumn] || 'all' : 'all';
             populateDatabaseFilterOptions(lastRowDatabase);
+            populateCohortFilterOptions();
             filterTable();
         }
 
@@ -707,10 +715,20 @@
 
         function getFilteredData() {
             if (!currentData) return [];
-            if (!currentDatabaseColumn || !currentDatabaseFilter || currentDatabaseFilter === 'all') {
-                return currentData;
-            }
-            return currentData.filter(row => normalizeValue(row[currentDatabaseColumn]) === normalizeValue(currentDatabaseFilter));
+
+            return currentData.filter(row => {
+                if (currentDatabaseColumn && currentDatabaseFilter && currentDatabaseFilter !== 'all') {
+                    if (normalizeValue(row[currentDatabaseColumn]) !== normalizeValue(currentDatabaseFilter)) {
+                        return false;
+                    }
+                }
+                if (currentCohortColumn && currentCohortFilter && currentCohortFilter !== 'all') {
+                    if (normalizeValue(row[currentCohortColumn]) !== normalizeValue(currentCohortFilter)) {
+                        return false;
+                    }
+                }
+                return true;
+            });
         }
 
         function populateDatabaseFilterOptions(defaultDatabase) {
@@ -759,8 +777,53 @@
             }
         }
 
+        function populateCohortFilterOptions() {
+            const select = document.getElementById('cohortFilterSelect');
+            if (!select) return;
+
+            if (!currentCohortColumn) {
+                select.innerHTML = '';
+                const noOption = document.createElement('option');
+                noOption.value = 'all';
+                noOption.textContent = 'אין עמודת Cohort';
+                select.appendChild(noOption);
+                select.disabled = true;
+                currentCohortFilter = 'all';
+                return;
+            }
+
+            select.disabled = false;
+            const rawCohorts = currentData
+                .map(row => row[currentCohortColumn] || '')
+                .map(value => value.toString().trim())
+                .filter(Boolean);
+
+            const distinctCohorts = Array.from(new Set(rawCohorts));
+
+            select.innerHTML = '';
+            const allOption = document.createElement('option');
+            allOption.value = 'all';
+            allOption.textContent = 'הצג את כל ה-Cohort';
+            select.appendChild(allOption);
+
+            distinctCohorts.forEach(cohort => {
+                const option = document.createElement('option');
+                option.value = normalizeValue(cohort);
+                option.textContent = cohort;
+                select.appendChild(option);
+            });
+
+            select.value = 'all';
+            currentCohortFilter = 'all';
+        }
+
         function onDatabaseFilterChange() {
             currentDatabaseFilter = document.getElementById('databaseFilterSelect').value;
+            filterTable();
+        }
+
+        function onCohortFilterChange() {
+            currentCohortFilter = document.getElementById('cohortFilterSelect').value;
             filterTable();
         }
 
