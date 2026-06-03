@@ -29,18 +29,11 @@ jobs:
           MEGAMAP_TOKEN: ${{ secrets.MEGAMAP_ACCESS }}
         run: |
           set -e
-          
           MEGAMAP_OWNER="ShebaMicrobiomeCenter"
           MEGAMAP_REPO="megamap"
           MEGAMAP_FILE_PATH="latest-light.csv.enc"
-          
-          # Simple URL encoding (no special characters in our filename)
-          ENCODED_PATH="$MEGAMAP_FILE_PATH"
-          API_URL="https://api.github.com/repos/$MEGAMAP_OWNER/$MEGAMAP_REPO/contents/$ENCODED_PATH"
-          
+          API_URL="https://api.github.com/repos/${MEGAMAP_OWNER}/${MEGAMAP_REPO}/contents/${MEGAMAP_FILE_PATH}"
           echo "📥 Downloading from: $API_URL"
-          
-          # Download from private repository using GitHub API
           RESPONSE=$(curl -s -L \
             -H "Accept: application/vnd.github+json" \
             -H "Authorization: Bearer $MEGAMAP_TOKEN" \
