@@ -415,7 +415,7 @@
 
                     <div class="form-group">
                         <label for="passwordInput">סיסמה:</label>
-                        <input type="password" id="passwordInput" placeholder="הכנס סיסמה...">
+                        <input type="password" id="passwordInput" placeholder="הכנס סיסמה..." autocomplete="new-password">
                     </div>
 
                     <div class="button-group">
@@ -537,7 +537,11 @@
                 // Derive key
                 const key = await deriveKey(password, salt);
 
-                // Decrypt
+                // Decrypt - concatenate ciphertext + tag using Uint8Array
+                const combined = new Uint8Array(ciphertext.length + tag.length);
+                combined.set(ciphertext, 0);
+                combined.set(tag, ciphertext.length);
+
                 const decrypted = await crypto.subtle.decrypt(
                     {
                         name: 'AES-GCM',
@@ -545,7 +549,7 @@
                         tagLength: 128
                     },
                     key,
-                    Buffer.concat([ciphertext, tag])
+                    combined.buffer
                 );
 
                 // Parse CSV
@@ -554,7 +558,7 @@
 
                 // Store password in session
                 currentPassword = password;
-                currentFileName = file.name;
+                currentFileName = 'latest-light.csv.enc';
 
                 // Save password (only) to localStorage
                 localStorage.setItem('encryptedFilePassword', password);
