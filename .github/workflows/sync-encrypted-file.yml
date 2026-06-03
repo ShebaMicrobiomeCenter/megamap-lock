@@ -41,34 +41,29 @@ jobs:
           
           # בדוק אם קיבלנו שגיאה
           if echo "$RESPONSE" | grep -q '"message"'; then
-            echo "❌ API Error - debugging info:"
-            echo "API_URL: $API_URL"
+            echo "❌ שגיאה בהורדת הקובץ"
             echo "Response: $RESPONSE"
-            
-            # Try to list files in MEGAMAP repo to debug
-            echo ""
-            echo "📋 Listing MEGAMAP repo contents:"
-            curl -s -L \
-              -H "Accept: application/vnd.github+json" \
-              -H "Authorization: Bearer $MEGAMAP_TOKEN" \
-              "https://api.github.com/repos/$MEGAMAP_OWNER/$MEGAMAP_REPO/contents/" | head -100
-            
             exit 1
           fi
           
-          # חלץ את התוכן המקודד base64
-          ENCODED_CONTENT=$(echo "$RESPONSE" | grep -o '"content":"[^"]*' | cut -d'"' -f4)
+          # חלץ את התוכן המקודד base64 using jq (handles multi-line content)
+          ENCODED_CONTENT=$(echo "$RESPONSE" | jq -r '.content')
           
-          if [ -z "$ENCODED_CONTENT" ]; then
+          if [ -z "$ENCODED_CONTENT" ] || [ "$ENCODED_CONTENT" = "null" ]; then
             echo "❌ לא ניתן לחלץ את התוכן מהתגובה"
             echo "Response: $RESPONSE"
             exit 1
           fi
           
           # בטל קידוד base64 וחסוך לקובץ
-          echo "$ENCODED_CONTENT" | base64 -d > "$(basename "$MEGAMAP_FILE_PATH")"
-          
           FILE_NAME=$(basename "$MEGAMAP_FILE_PATH")
+          echo "$ENCODED_CONTENT" | base64 -d > "$FILE_NAME"
+          
+          if [ ! -f "$FILE_NAME" ] || [ ! -s "$FILE_NAME" ]; then
+            echo "❌ הקובץ לא נשמר בהצלחה"
+            exit 1
+          fi
+          
           echo "✅ הקובץ הורד בהצלחה: $FILE_NAME"
 
       - name: Check if file changed
