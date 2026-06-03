@@ -79,21 +79,27 @@ jobs:
 
       - name: Commit and push changes
         env:
-          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          PUSH_TOKEN: ${{ secrets.MEGAMAP_ACCESS }}
         run: |
+          set -e
           git config user.name "github-actions[bot]"
           git config user.email "github-actions[bot]@users.noreply.github.com"
-          
+
           FILE_NAME="latest-light.csv.enc"
-          
-          # Add the file
+
+          # Add and commit the file
           git add "$FILE_NAME"
-          
-          # Commit (will succeed even if no changes, with || true)
           git commit -m "🔄 Sync encrypted file: $FILE_NAME" -m "$(date)" || true
-          
-          # Always push
-          git push || true
+
+          # Use PAT to push (ensures permissions)
+          if [ -z "$PUSH_TOKEN" ]; then
+            echo "❌ Missing push token (MEGAMAP_ACCESS)"
+            exit 1
+          fi
+
+          REMOTE_URL="https://x-access-token:${PUSH_TOKEN}@github.com/ShebaMicrobiomeCenter/megamap-lock.git"
+          git remote set-url origin "$REMOTE_URL"
+          git push origin HEAD:master --follow-tags
 
       - name: Update status
         if: always()
