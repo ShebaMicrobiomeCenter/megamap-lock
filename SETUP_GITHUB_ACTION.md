@@ -80,20 +80,43 @@ schedule:
 2. בחר **Sync Encrypted File from MEGAMAP** מהרשימה הימנית
 3. לחץ **Run workflow**
 
-### אפשרות 3: Webhook (advanced)
-אם רוצה לסנכרן כשהקובץ מתעדכן בחיות, תוכל להגדיר webhook:
+### אפשרות 3: Webhook / GitHub dispatch
+אם רוצים שהסנכרון יפעל מיד כשקובץ `latest-light.csv.enc` מתעדכן ב־MEGAMAP, אפשר להפעיל את ה-Workflow באמצעות `repository_dispatch`.
 
-ב-Repository של MEGAMAP, הוסף webhook שישלח בקשה ל:
-```
-https://api.github.com/repos/[YOUR_USERNAME]/megamap-lock/dispatches
+ב-Repository של MEGAMAP, ניתן להגדיר workflow שמריץ event ברגע שהקובץ מתעדכן, ושולח את האירוע לריפו הזה.
+
+ה-Workflow ב־MEGAMAP יכול להשתמש ב-API של GitHub כך:
+
+```bash
+curl -X POST \
+  -H "Accept: application/vnd.github+json" \
+  -H "Authorization: token YOUR_PAT" \
+  https://api.github.com/repos/ShebaMicrobiomeCenter/megamap-lock/dispatches \
+  -d '{"event_type":"megamap-updated"}'
 ```
 
-עם payload:
-```json
-{
-  "event_type": "megamap-updated"
-}
+או ב-YAML של פעולה בתוך המגה־מאפ:
+
+```yaml
+on:
+  push:
+    paths:
+      - latest-light.csv.enc
+
+jobs:
+  notify-lock:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Send repository dispatch to megamap-lock
+        run: |
+          curl -X POST \
+            -H "Accept: application/vnd.github+json" \
+            -H "Authorization: token ${{ secrets.PAT }}" \
+            https://api.github.com/repos/ShebaMicrobiomeCenter/megamap-lock/dispatches \
+            -d '{"event_type":"megamap-updated"}'
 ```
+
+לאחר זה, `sync-encrypted-file.yml` בריפו הזה יפעיל את הסנכרון מיד.
 
 ---
 

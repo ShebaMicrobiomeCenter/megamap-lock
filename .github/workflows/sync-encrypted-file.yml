@@ -7,10 +7,10 @@ on:
   
   # אפשרות להריץ ידנית
   workflow_dispatch:
-  
-  # אם רוצים תירוץ כאשר הקובץ מתעדכן ברפו של MEGAMAP (צריך להגדיר webhook)
-  # repository_dispatch:
-  #   types: [megamap-updated]
+
+  # אפשרות להפעיל את ה-Workflow דרך webhook / repository dispatch
+  repository_dispatch:
+    types: [megamap-updated]
 
 jobs:
   sync:
@@ -27,11 +27,14 @@ jobs:
       - name: Download encrypted file from MEGAMAP repository
         env:
           MEGAMAP_TOKEN: ${{ secrets.MEGAMAP_ACCESS }}
+          MEGAMAP_OWNER: ${{ vars.MEGAMAP_OWNER }}
+          MEGAMAP_REPO: ${{ vars.MEGAMAP_REPO }}
+          MEGAMAP_FILE_PATH: ${{ vars.MEGAMAP_FILE_PATH }}
         run: |
           set -e
-          MEGAMAP_OWNER="ShebaMicrobiomeCenter"
-          MEGAMAP_REPO="megamap"
-          MEGAMAP_FILE_PATH="latest-light.csv.enc"
+          MEGAMAP_OWNER="${MEGAMAP_OWNER:-ShebaMicrobiomeCenter}"
+          MEGAMAP_REPO="${MEGAMAP_REPO:-megamap}"
+          MEGAMAP_FILE_PATH="${MEGAMAP_FILE_PATH:-latest-light.csv.enc}"
           API_URL="https://api.github.com/repos/${MEGAMAP_OWNER}/${MEGAMAP_REPO}/contents/${MEGAMAP_FILE_PATH}"
           echo "📥 Downloading from: $API_URL"
           RESPONSE=$(curl -s -L \
