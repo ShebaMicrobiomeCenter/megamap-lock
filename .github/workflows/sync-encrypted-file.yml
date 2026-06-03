@@ -69,26 +69,31 @@ jobs:
       - name: Check if file changed
         id: check_changes
         run: |
-          if git diff --quiet "$(ls *.enc 2>/dev/null | head -1 || echo '.gitkeep')"; then
-            echo "changed=false" >> $GITHUB_OUTPUT
-            echo "📄 אין שינויים בקובץ"
+          if [ ! -f "latest-light.csv.enc" ]; then
+            echo "exists=false" >> $GITHUB_OUTPUT
+            echo "📄 קובץ חדש"
           else
-            echo "changed=true" >> $GITHUB_OUTPUT
-            echo "🔄 הקובץ התעדכן"
+            echo "exists=true" >> $GITHUB_OUTPUT
+            echo "✅ קובץ קיים"
           fi
 
       - name: Commit and push changes
-        if: steps.check_changes.outputs.changed == 'true'
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
         run: |
           git config user.name "github-actions[bot]"
           git config user.email "github-actions[bot]@users.noreply.github.com"
           
-          FILE_NAME=$(ls *.enc 2>/dev/null | head -1)
+          FILE_NAME="latest-light.csv.enc"
+          
+          # Add the file
           git add "$FILE_NAME"
-          git commit -m "🔄 Update encrypted file: $FILE_NAME" || true
-          git push
+          
+          # Commit (will succeed even if no changes, with || true)
+          git commit -m "🔄 Sync encrypted file: $FILE_NAME" -m "$(date)" || true
+          
+          # Always push
+          git push || true
 
       - name: Update status
         if: always()
