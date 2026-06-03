@@ -688,8 +688,25 @@
 
         // Update info bar
         function updateInfoBar(count = null) {
-            const rowCount = count !== null ? count : currentData.length;
-            document.querySelector('.row-count').textContent = `${rowCount} שורות`;
+            const rowCount = count !== null ? count : (currentData ? currentData.length : 0);
+            let el = document.querySelector('.row-count');
+            if (!el) {
+                const infoBar = document.querySelector('.info-bar');
+                if (infoBar) {
+                    el = document.createElement('span');
+                    el.className = 'row-count';
+                    el.textContent = `${rowCount} שורות`;
+                    // insert before clear button if present
+                    const clearBtn = infoBar.querySelector('.clear-password-btn');
+                    if (clearBtn) infoBar.insertBefore(el, clearBtn);
+                    else infoBar.appendChild(el);
+                    return;
+                } else {
+                    console.warn('info-bar element not found');
+                    return;
+                }
+            }
+            el.textContent = `${rowCount} שורות`;
         }
 
         // Download as CSV
