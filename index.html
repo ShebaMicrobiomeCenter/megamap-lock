@@ -4,6 +4,8 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>MegaMap - צפיה בנתונים מוצפנים</title>
+    <!-- Umami Analytics -->
+    <script defer src="https://cloud.umami.is/script.js" data-website-id="ae71c4b9-32c8-4bf5-bcdc-dddf9fd09b14" data-tag="megamap"></script>
     <style>
         * {
             margin: 0;
@@ -608,10 +610,20 @@
                 document.getElementById('dataSection').classList.add('active');
                 messageBox.classList.add('hidden');
 
+                // Track successful login event in Umami
+                if (window.umami && typeof window.umami.track === 'function') {
+                    window.umami.track('login-success');
+                }
+
             } catch (error) {
                 console.error('Decryption error:', error);
                 showMessage('שגיאה בפענוח: ' + error.message, 'error', messageBox);
                 loadingBar.classList.add('hidden');
+
+                // Track failed login event in Umami
+                if (window.umami && typeof window.umami.track === 'function') {
+                    window.umami.track('login-failure', { error: error.message });
+                }
             }
         }
 
@@ -891,6 +903,11 @@
             link.href = URL.createObjectURL(blob);
             link.download = 'megamap_data.csv';
             link.click();
+
+            // Track CSV download event in Umami
+            if (window.umami && typeof window.umami.track === 'function') {
+                window.umami.track('download-csv');
+            }
         }
 
         // Clear password
